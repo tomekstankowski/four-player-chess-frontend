@@ -1,0 +1,50 @@
+.square {
+    display: inline-block;
+    height: 6vh;
+    width: 6vh;
+    vertical-align: top;
+    cursor: pointer;
+    position: relative;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+}
+
+.piece {
+    height: 100%;
+    width: 100%;
+}
+
+.light {
+    background-color: #F1D7B6;
+}
+
+.dark {
+    background-color: #B88765;
+}
+
+.selected {
+    background-color: #5B6E43;
+}
+
+.lastMove {
+    background-color: #CBD07D;
+}
+
+.checked {
+    background-color: #E23D4E;
+}
+
+.moveDestinationIndicator {
+    height: 30%;
+    width: 30%;
+    background-color: #5B6E43;
+    border-radius: 50%;
+    display: inline-block;
+    position: absolute;
+    opacity: 75%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}

@@ -1,0 +1,18 @@
+.container {
+    background-color: #F2D5B7;
+    border-width: 2px;
+    border-style: solid;
+    border-color: #B89872;
+    padding: 24px;
+}
+
+.icon {
+    width: 72px;
+    height: 72px;
+    cursor: pointer;
+}
+
+.separator {
+    display: inline-block;
+    width: 16px;
+}

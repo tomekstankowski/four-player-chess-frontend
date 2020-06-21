@@ -1,0 +1,21 @@
+.nilSquare {
+    height: 6vh;
+    width: 6vh;
+    display: inline-block;
+    vertical-align: top;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+}
+
+.container {
+    position: relative;
+}
+
+.promotionPieceSelectBox {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
