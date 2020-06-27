@@ -1,6 +1,10 @@
 import httpClient from './httpClient'
 import { client as websocketClient } from './websocket'
 
+export function fetchGame (gameId) {
+  return httpClient.get(`/games/${gameId}`).then(response => response.data)
+}
+
 export function fetchGameState (gameId) {
   return httpClient.get(`/games/${gameId}/state`).then(response => response.data)
 }
@@ -14,7 +18,7 @@ export function fetchActiveGamesForPlayer () {
 }
 
 export function makeMove (gameId, move) {
-  websocketClient.publish({ destination: `/games/${gameId}/moves`, body: JSON.stringify(move) })
+  websocketClient.publish({ destination: `/games/${gameId}/make-move`, body: JSON.stringify(move) })
 }
 
 export function subscribeToMovesTopic (gameId, callback) {

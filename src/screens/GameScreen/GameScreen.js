@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import ChessBoard from 'components/ChessBoard'
-import { fetchGameState, fetchPlayersOfTheGame, makeMove, subscribeToMovesTopic } from 'api'
+import { fetchGame, fetchGameState, fetchPlayersOfTheGame, makeMove, subscribeToMovesTopic } from 'api'
 import Button from '@material-ui/core/Button'
 import FlipIcon from '@material-ui/icons/RotateLeftRounded'
 import Typography from '@material-ui/core/Typography'
-import { useParams } from 'react-router-dom'
+import { useHistory, useParams } from 'react-router-dom'
 import { fetched, fetchError, loading } from 'resource'
 import { useWebsocketConnection } from 'hooks'
 import ConnectionLoader from 'components/ConnectionLoader'
@@ -83,7 +83,7 @@ const useStyles = makeStyles({
 
 export default function GameScreen ({ auth }) {
   const [gameState, setGameState] = useState(loading())
-  const [players, setPlayers] = useState(loading())
+  const [game, setGame] = useState(loading())
   const [lastMove, setLastMove] = useState(null)
   const [observedColor, setObservedColor] = useState(PieceColor.Red)
 
@@ -95,6 +95,26 @@ export default function GameScreen ({ auth }) {
 
   const { userId: currentUserId } = auth
 
+  const history = useHistory()
+
+  useEffect(() => {
+    Promise.all([
+      fetchGame(gameId),
+      fetchPlayersOfTheGame(gameId)
+    ])
+      .then(([game, players]) =>
+        setGame(
+          fetched({
+            ...game,
+            players: players
+          })
+        )
+      )
+      .catch(() =>
+        setGame(fetchError())
+      )
+  }, [gameId])
+
   const loadGameState = useCallback(() => {
     setGameState(prev => ({
       ...prev,
@@ -104,20 +124,19 @@ export default function GameScreen ({ auth }) {
 
     fetchGameState(gameId)
       .then(gameState => setGameState(fetched(gameState)))
-      .catch(() =>
-        setGameState(prev => ({
-            ...prev,
-            isError: true,
-            isLoading: false,
-          })
-        )
+      .catch(() => setGameState(fetchError())
       )
   }, [gameId])
 
-  const getColorOfCurrentPlayer = useCallback(players => {
+  const getColorOfCurrentUser = players => {
     const player = players.find(p => p.playerId === currentUserId)
-    return player.color
-  }, [currentUserId])
+    if (player) {
+      return player.color
+    }
+    return null
+  }
+
+  const colorOfCurrentUser = game.value ? getColorOfCurrentUser(game.value.players) : null
 
   function handleFlipClick () {
     const observedColorIndex = Object.values(PieceColor).indexOf(observedColor)
@@ -130,8 +149,12 @@ export default function GameScreen ({ auth }) {
     makeMove(gameId, move)
   }
 
+  function handleNewGameClick () {
+    history.replace('/')
+  }
+
   useEffect(() => {
-    if (!isConnected) {
+    if (!isConnected || !game.value || game.value.isCancelled || game.value.isFinished) {
       return () => {}
     }
     loadGameState()
@@ -143,25 +166,19 @@ export default function GameScreen ({ auth }) {
     return () => {
       unsubscribeFromMovesTopic()
     }
-  }, [gameId, loadGameState, isConnected])
+  }, [gameId, game, loadGameState, isConnected])
 
   useEffect(() => {
-    setPlayers(loading())
-
-    fetchPlayersOfTheGame(gameId)
-      .then(players => {
-        setPlayers(fetched(players))
-        const currentPlayerColor = getColorOfCurrentPlayer(players)
-        setObservedColor(currentPlayerColor)
-      })
-      .catch(() => setPlayers(fetchError()))
-  }, [gameId, getColorOfCurrentPlayer])
+    if (colorOfCurrentUser) {
+      setObservedColor(colorOfCurrentUser)
+    }
+  }, [colorOfCurrentUser])
 
   return (
     <div className={classes.container}>
       <div className={classes.boardContainer}>
         {
-          gameState.isError &&
+          (game.isError || gameState.isError) &&
           <Typography
             color='error'
             variant='h4'>
@@ -169,16 +186,16 @@ export default function GameScreen ({ auth }) {
           </Typography>
         }
         {
-          gameState.isLoading && !gameState.value &&
+          (!game.isError && gameState.isLoading && !gameState.value) &&
           <ChessBoard
             board={emptyBoard}/>
         }
         {
-          gameState.value && !gameState.isError &&
+          (game.value && gameState.value) &&
           <ChessBoard
             board={gameState.value.board}
             nextMoveColor={gameState.value.nextMoveColor}
-            isPlayerMove={players.value && getColorOfCurrentPlayer(players.value) === gameState.value.nextMoveColor}
+            isPlayerMove={!gameState.value.isFinished && colorOfCurrentUser === gameState.value.nextMoveColor}
             legalMoves={gameState.value.legalMoves}
             eliminatedColors={gameState.value.eliminatedColors}
             colorsInCheck={gameState.value.colorsInCheck}
@@ -191,17 +208,75 @@ export default function GameScreen ({ auth }) {
       <div className={classes.panel}>
         <div className={classes.panelContentContainer}>
           {
-            gameState.value &&
+            (gameState.value && colorOfCurrentUser) &&
+            <Typography color='textPrimary' variant='h6'>
+              You play as <Typography className={classes[colorOfCurrentUser]}
+                                       component='span'
+                                       variant='h6'>{colorOfCurrentUser}</Typography>
+            </Typography>
+          }
+          {
+            (gameState.value && !gameState.value.isFinished) &&
             <>
+              <div className={classes.space}/>
               <Typography color='textPrimary' variant='h6'>
-                Next turn: <Typography className={classes[gameState.value.nextMoveColor]} component='span'
-                                       variant='h6'>{gameState.value.nextMoveColor.toUpperCase()}</Typography>
+                Next move: <Typography className={classes[gameState.value.nextMoveColor]} component='span'
+                                       variant='h6'>{gameState.value.nextMoveColor}</Typography>
               </Typography>
               <div className={classes.space}/>
               <Button
                 onClick={handleFlipClick}
                 startIcon={<FlipIcon/>}>
                 Flip board
+              </Button>
+            </>
+          }
+          {
+            (game.value && game.value.isFinished) &&
+            <Typography
+              color='textPrimary'
+              variant='h6'>
+              Game over
+            </Typography>
+          }
+          {
+            (game.value && game.value.isCancelled) &&
+            <Typography
+              color='textPrimary'
+              variant='h6'>
+              Game cancelled
+            </Typography>
+          }
+          {
+            (gameState.value && gameState.value.isFinished && gameState.value.winningColor) &&
+            <Typography
+              className={classes[gameState.value.winningColor]}
+              color='textPrimary'
+              variant='h6'>
+              {gameState.value.winningColor}
+              <Typography
+                component='span'
+                color='textPrimary'
+                variant='h6'> won
+              </Typography>
+            </Typography>
+          }
+          {
+            (gameState.value && gameState.value.isFinished && !gameState.value.winningColor) &&
+            <Typography
+              color='textPrimary'
+              variant='h6'>
+              Draw
+            </Typography>
+          }
+          {
+            ((gameState.value && gameState.value.isFinished) || (game.value && (game.value.isFinished || game.value.isCancelled))) &&
+            <>
+              <div className={classes.space}/>
+              <Button
+                color='primary'
+                onClick={handleNewGameClick}>
+                New game
               </Button>
             </>
           }

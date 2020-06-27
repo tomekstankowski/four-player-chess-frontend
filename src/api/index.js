@@ -1,4 +1,5 @@
 import {
+  fetchGame,
   fetchGameState,
   fetchPlayersOfTheGame,
   fetchActiveGamesForPlayer,
@@ -28,6 +29,7 @@ import {
 } from './websocket'
 
 export {
+  fetchGame,
   fetchGameState,
   fetchPlayersOfTheGame,
   fetchActiveGamesForPlayer,

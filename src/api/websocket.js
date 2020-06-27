@@ -21,13 +21,12 @@ export function isConnected () {
 
 export function init () {
   authTokenObservable.subscribe(token => {
+    client.deactivate()
     if (token) {
       client.connectHeaders = {
         Authorization: `Bearer ${token}`
       }
       client.activate()
-    } else {
-      client.deactivate()
     }
   })
 
