@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import ChessBoard from 'components/ChessBoard'
-import { fetchGame, fetchGameState, fetchPlayersOfTheGame, makeMove, subscribeToMovesTopic } from 'api'
+import {
+  fetchGame,
+  fetchGameState,
+  fetchPlayersOfTheGame,
+  makeMove,
+  resign,
+  subscribeToMovesTopic,
+  subscribeToResignationsTopic
+} from 'api'
 import Button from '@material-ui/core/Button'
 import FlipIcon from '@material-ui/icons/RotateLeftRounded'
 import Typography from '@material-ui/core/Typography'
@@ -149,6 +157,10 @@ export default function GameScreen ({ auth }) {
     makeMove(gameId, move)
   }
 
+  function handleResignClick () {
+    resign(gameId)
+  }
+
   function handleNewGameClick () {
     history.replace('/')
   }
@@ -163,8 +175,13 @@ export default function GameScreen ({ auth }) {
       setGameState(fetched(newGameState))
     })
 
+    const unsubscribeFromResignationsTopic = subscribeToResignationsTopic(gameId, (newGameState, resignedColor) => {
+      setGameState(fetched(newGameState))
+    })
+
     return () => {
       unsubscribeFromMovesTopic()
+      unsubscribeFromResignationsTopic()
     }
   }, [gameId, game, loadGameState, isConnected])
 
@@ -173,6 +190,19 @@ export default function GameScreen ({ auth }) {
       setObservedColor(colorOfCurrentUser)
     }
   }, [colorOfCurrentUser])
+
+  function isResignationAllowed () {
+    const state = gameState.value
+    return state && !state.isFinished && colorOfCurrentUser && !state.eliminatedColors.includes(colorOfCurrentUser)
+  }
+
+  function isNewGameAllowed () {
+    const stateVal = gameState.value
+    const gameVal = game.value
+    return (stateVal && (stateVal.isFinished || stateVal.eliminatedColors.includes(colorOfCurrentUser)))
+      || (gameVal && (gameVal.isFinished || gameVal.isCancelled))
+      || !colorOfCurrentUser
+  }
 
   return (
     <div className={classes.container}>
@@ -211,8 +241,8 @@ export default function GameScreen ({ auth }) {
             (gameState.value && colorOfCurrentUser) &&
             <Typography color='textPrimary' variant='h6'>
               You play as <Typography className={classes[colorOfCurrentUser]}
-                                       component='span'
-                                       variant='h6'>{colorOfCurrentUser}</Typography>
+                                      component='span'
+                                      variant='h6'>{colorOfCurrentUser}</Typography>
             </Typography>
           }
           {
@@ -230,6 +260,14 @@ export default function GameScreen ({ auth }) {
                 Flip board
               </Button>
             </>
+          }
+          {
+            isResignationAllowed() &&
+            <Button
+              color='secondary'
+              onClick={handleResignClick}>
+              Resign
+            </Button>
           }
           {
             (game.value && game.value.isFinished) &&
@@ -270,7 +308,7 @@ export default function GameScreen ({ auth }) {
             </Typography>
           }
           {
-            ((gameState.value && gameState.value.isFinished) || (game.value && (game.value.isFinished || game.value.isCancelled))) &&
+            isNewGameAllowed() &&
             <>
               <div className={classes.space}/>
               <Button

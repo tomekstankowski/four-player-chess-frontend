@@ -21,10 +21,24 @@ export function makeMove (gameId, move) {
   websocketClient.publish({ destination: `/games/${gameId}/make-move`, body: JSON.stringify(move) })
 }
 
+export function resign (gameId) {
+  websocketClient.publish({ destination: `/games/${gameId}/resign` })
+}
+
 export function subscribeToMovesTopic (gameId, callback) {
   const sub = websocketClient.subscribe(`/topic/games/${gameId}/moves`, message => {
     const { newGameState, move } = JSON.parse(message.body)
     callback(newGameState, move)
+  })
+  return () => {
+    sub.unsubscribe()
+  }
+}
+
+export function subscribeToResignationsTopic (gameId, callback) {
+  const sub = websocketClient.subscribe(`/topic/games/${gameId}/resignations`, message => {
+    const { newGameState, resignedColor } = JSON.parse(message.body)
+    callback(newGameState, resignedColor)
   })
   return () => {
     sub.unsubscribe()

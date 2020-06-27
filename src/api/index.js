@@ -4,7 +4,9 @@ import {
   fetchPlayersOfTheGame,
   fetchActiveGamesForPlayer,
   makeMove,
-  subscribeToMovesTopic
+  subscribeToMovesTopic,
+  resign,
+  subscribeToResignationsTopic
 } from './game'
 import {
   fetchLobbies,
@@ -35,6 +37,8 @@ export {
   fetchActiveGamesForPlayer,
   makeMove,
   subscribeToMovesTopic,
+  resign,
+  subscribeToResignationsTopic,
 
   fetchLobbies,
   fetchLobby,
