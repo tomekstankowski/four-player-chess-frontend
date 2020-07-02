@@ -25,6 +25,10 @@ export function resign (gameId) {
   websocketClient.publish({ destination: `/games/${gameId}/resign` })
 }
 
+export function claimDraw (gameId) {
+  websocketClient.publish({ destination: `/games/${gameId}/claim-draw` })
+}
+
 export function subscribeToMovesTopic (gameId, callback) {
   const sub = websocketClient.subscribe(`/topic/games/${gameId}/moves`, message => {
     const { newGameState, move } = JSON.parse(message.body)
@@ -39,6 +43,16 @@ export function subscribeToResignationsTopic (gameId, callback) {
   const sub = websocketClient.subscribe(`/topic/games/${gameId}/resignations`, message => {
     const { newGameState, resignedColor } = JSON.parse(message.body)
     callback(newGameState, resignedColor)
+  })
+  return () => {
+    sub.unsubscribe()
+  }
+}
+
+export function subscribeToDrawClaimedTopic (gameId, callback) {
+  const sub = websocketClient.subscribe(`/topic/games/${gameId}/draw-claimed`, message => {
+    const { newGameState, claimingColor } = JSON.parse(message.body)
+    callback(newGameState, claimingColor)
   })
   return () => {
     sub.unsubscribe()

@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import ChessBoard from 'components/ChessBoard'
 import {
+  claimDraw,
   fetchGame,
   fetchGameState,
   fetchPlayersOfTheGame,
   makeMove,
-  resign,
+  resign, subscribeToDrawClaimedTopic,
   subscribeToMovesTopic,
   subscribeToResignationsTopic
 } from 'api'
@@ -161,6 +162,10 @@ export default function GameScreen ({ auth }) {
     resign(gameId)
   }
 
+  function handleClaimDrawClick () {
+    claimDraw(gameId)
+  }
+
   function handleNewGameClick () {
     history.replace('/')
   }
@@ -179,9 +184,14 @@ export default function GameScreen ({ auth }) {
       setGameState(fetched(newGameState))
     })
 
+    const unsubscribeFromDrawClaimedTopic = subscribeToDrawClaimedTopic(gameId, (newGameState, claimingColor) => {
+      setGameState(fetched(newGameState))
+    })
+
     return () => {
       unsubscribeFromMovesTopic()
       unsubscribeFromResignationsTopic()
+      unsubscribeFromDrawClaimedTopic()
     }
   }, [gameId, game, loadGameState, isConnected])
 
@@ -194,6 +204,11 @@ export default function GameScreen ({ auth }) {
   function isResignationAllowed () {
     const state = gameState.value
     return state && !state.isFinished && colorOfCurrentUser && !state.eliminatedColors.includes(colorOfCurrentUser)
+  }
+
+  function isDrawByClaimAllowed () {
+    const state = gameState.value
+    return state && state.isDrawByClaimAllowed
   }
 
   function isNewGameAllowed () {
@@ -267,6 +282,14 @@ export default function GameScreen ({ auth }) {
               color='secondary'
               onClick={handleResignClick}>
               Resign
+            </Button>
+          }
+          {
+            isDrawByClaimAllowed() &&
+            <Button
+              color='secondary'
+              onClick={handleClaimDrawClick}>
+              Claim draw
             </Button>
           }
           {

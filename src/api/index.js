@@ -6,7 +6,9 @@ import {
   makeMove,
   subscribeToMovesTopic,
   resign,
-  subscribeToResignationsTopic
+  subscribeToResignationsTopic,
+  claimDraw,
+  subscribeToDrawClaimedTopic
 } from './game'
 import {
   fetchLobbies,
@@ -39,6 +41,8 @@ export {
   subscribeToMovesTopic,
   resign,
   subscribeToResignationsTopic,
+  claimDraw,
+  subscribeToDrawClaimedTopic,
 
   fetchLobbies,
   fetchLobby,
