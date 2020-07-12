@@ -26,15 +26,27 @@ export function fetchLobby (id) {
 
 export function deleteLobby (id) {
   return httpClient.delete(`/lobbies/${id}`)
+    .then(response => response.data)
 }
 
 export function leaveLobby (id) {
   return httpClient.post(`/lobbies/${id}/leave`)
+    .then(response => response.data)
 }
 
 export function joinLobby (id) {
   return authenticate()
     .then(() => httpClient.post(`/lobbies/${id}/join`))
+}
+
+export function addBotToLobby (id) {
+  return httpClient.post(`/lobbies/${id}/random-bots`)
+    .then(response => response.data)
+}
+
+export function removeBotFromLobby (lobbyId, botId) {
+  return httpClient.delete(`/lobbies/${lobbyId}/random-bots/${botId}`)
+    .then(response => response.data)
 }
 
 export function subscribeToJoiningPlayersTopic (lobbyId, callback) {
@@ -51,6 +63,26 @@ export function subscribeToLeavingPlayersTopic (lobbyId, callback) {
   const sub = websocketClient.subscribe(`/topic/lobbies/${lobbyId}/leaving-players`, message => {
     const playerId = JSON.parse(message.body).playerId
     callback(playerId)
+  })
+  return () => {
+    sub.unsubscribe()
+  }
+}
+
+export function subscribeToAddedBotsTopic (lobbyId, callback) {
+  const sub = websocketClient.subscribe(`/topic/lobbies/${lobbyId}/added-bots`, message => {
+    const newPlayer = JSON.parse(message.body)
+    callback(newPlayer)
+  })
+  return () => {
+    sub.unsubscribe()
+  }
+}
+
+export function subscribeToRemovedBotsTopic (lobbyId, callback) {
+  const sub = websocketClient.subscribe(`/topic/lobbies/${lobbyId}/removed-bots`, message => {
+    const  { botId } = JSON.parse(message.body)
+    callback(botId)
   })
   return () => {
     sub.unsubscribe()

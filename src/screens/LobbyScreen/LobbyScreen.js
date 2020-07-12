@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from 'react'
 import Typography from '@material-ui/core/Typography'
 import {
+  addBotToLobby,
   deleteLobby,
   fetchLobby,
   leaveLobby,
+  removeBotFromLobby,
   startGame,
+  subscribeToAddedBotsTopic,
   subscribeToGameStartedTopic,
   subscribeToJoiningPlayersTopic,
   subscribeToLeavingPlayersTopic,
-  subscribeToLobbyDeletedTopic
+  subscribeToLobbyDeletedTopic,
+  subscribeToRemovedBotsTopic
 } from 'api'
-import { fetched, fetchError, loading, mapFetched } from 'resource'
+import { fetched, fetchError, loading } from 'resource'
 import { useHistory, useParams } from 'react-router-dom'
-import List from '@material-ui/core/List'
-import ListItem from '@material-ui/core/ListItem'
-import ListItemText from '@material-ui/core/ListItemText'
 import { useWebsocketConnection } from 'hooks'
 import Loader from 'components/Loader'
 import ErrorMessage from 'components/ErrorMessage'
@@ -23,6 +24,9 @@ import { makeStyles } from '@material-ui/core/styles'
 import ButtonLoader from 'components/ButtonLoader'
 import ErrorSnackbar from 'components/ErrorSnackbar'
 import ConnectionLoader from 'components/ConnectionLoader'
+import LobbyPlayersList from 'screens/LobbyScreen/LobbyPlayersList'
+import { addPlayer, removeBotPlayer, removeHumanPlayer } from 'screens/LobbyScreen/utils'
+import AddIcon from '@material-ui/icons/Add'
 
 const useStyles = makeStyles(theme => ({
   root: {
@@ -36,11 +40,6 @@ const useStyles = makeStyles(theme => ({
   },
   smallSpace: {
     height: 16
-  },
-  listItem: {
-    borderRadius: 8,
-    minWidth: 320,
-    backgroundColor: theme.palette.background.paper
   },
   content: {
     display: 'flex',
@@ -58,6 +57,7 @@ export default function LobbyScreen ({ auth }) {
   const [isDeleteInProgress, setDeleteInProgress] = useState(false)
   const [isLeaveInProgress, setLeaveInProgress] = useState(false)
   const [isStartInProgress, setStartInProgress] = useState(false)
+  const [isAddBotInProgress, setAddBotInProgress] = useState(false)
   const isActionInProgress = isDeleteInProgress || isLeaveInProgress || isStartInProgress
 
   const [isActionError, setActionError] = useState(false)
@@ -80,21 +80,19 @@ export default function LobbyScreen ({ auth }) {
       return () => {}
     }
     const unsubscribeFromJoiningPlayersTopic = subscribeToJoiningPlayersTopic(lobbyId, newPlayer => {
-      setLobby(lobby =>
-        mapFetched(lobby, value => ({
-          ...value,
-          players: [newPlayer, ...value.players]
-        }))
-      )
+      setLobby(lobby => addPlayer(lobby, newPlayer))
     })
 
     const unsubscribeFromLeavingPlayersTopic = subscribeToLeavingPlayersTopic(lobbyId, playerId => {
-      setLobby(lobby =>
-        mapFetched(lobby, value => ({
-          ...value,
-          players: value.players.filter(p => p.playerId !== playerId)
-        }))
-      )
+      setLobby(lobby => removeHumanPlayer(lobby, playerId))
+    })
+
+    const unsubscribeFromAddedBotsTopic = subscribeToAddedBotsTopic(lobbyId, newPlayer => {
+      setLobby(lobby => addPlayer(lobby, newPlayer))
+    })
+
+    const unsubscribeFromRemovedBotsTopic = subscribeToRemovedBotsTopic(lobbyId, botId => {
+      setLobby(lobby => removeBotPlayer(lobby, botId))
     })
 
     const unsubscribeFromLobbyDeleteTopic = subscribeToLobbyDeletedTopic(lobbyId, () => {
@@ -108,6 +106,8 @@ export default function LobbyScreen ({ auth }) {
     return () => {
       unsubscribeFromJoiningPlayersTopic()
       unsubscribeFromLeavingPlayersTopic()
+      unsubscribeFromAddedBotsTopic()
+      unsubscribeFromRemovedBotsTopic()
       unsubscribeFromLobbyDeleteTopic()
       unsubscribeFromGameStartTopic()
     }
@@ -143,6 +143,24 @@ export default function LobbyScreen ({ auth }) {
       })
   }
 
+  function handleAddBotClick () {
+    setAddBotInProgress(true)
+    addBotToLobby(lobbyId)
+      .catch(() => {
+        setActionError(true)
+      })
+      .then(() => {
+        setAddBotInProgress(false)
+      })
+  }
+
+  function handleRemoveBotClick (botPlayer) {
+    removeBotFromLobby(lobbyId, botPlayer.botId)
+      .catch(() => {
+        setActionError(true)
+      })
+  }
+
   const classes = useStyles()
 
   return (
@@ -164,28 +182,22 @@ export default function LobbyScreen ({ auth }) {
               color='textSecondary'>
               Players
             </Typography>
-            <List>
-              {
-                lobby.value.players.map(lobbyPlayer => {
-                    let title = lobbyPlayer.playerId === currentUserId ? 'You' : 'Unknown player'
-                    if (lobbyPlayer.playerId === lobby.value.ownerId) {
-                      title += ' (lobby owner)'
-                    }
-                    return (
-                      <div key={lobbyPlayer.playerId}>
-                        <ListItem classes={{
-                          root: classes.listItem
-                        }}>
-                          <ListItemText
-                            primary={<Typography variant='body1' color='textPrimary'>{title}</Typography>}/>
-                        </ListItem>
-                        <div className={classes.smallSpace}/>
-                      </div>
-                    )
-                  }
-                )
-              }
-            </List>
+            <LobbyPlayersList
+              lobby={lobby.value}
+              auth={auth}
+              onDeleteClick={handleRemoveBotClick}
+            />
+            {
+              lobby.value.ownerId === currentUserId &&
+              <Button
+                disabled={lobby.value.players.length === 4 || isActionInProgress}
+                onClick={handleAddBotClick}
+                variant='outlined'
+                startIcon={<AddIcon/>}>
+                Add bot
+                <ButtonLoader isVisible={isAddBotInProgress}/>
+              </Button>
+            }
             <div className={classes.space}/>
             {
               lobby.value.ownerId === currentUserId &&
